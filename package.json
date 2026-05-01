@@ -1,0 +1,21 @@
+{
+  "name": "cellar-homebrew-browser",
+  "version": "0.1.0",
+  "description": "A friendly macOS GUI for browsing, installing, updating, and removing Homebrew formulae and casks.",
+  "main": "main.js",
+  "scripts": {
+    "start": "electron .",
+    "check": "node --check app.js && node --check main.js && node --check preload.js"
+  },
+  "keywords": [
+    "homebrew",
+    "macos",
+    "cask",
+    "formula"
+  ],
+  "author": "",
+  "license": "MIT",
+  "devDependencies": {
+    "electron": "^41.4.0"
+  }
+}

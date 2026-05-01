@@ -1,0 +1,107 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Cellar - Homebrew Browser</title>
+    <link rel="stylesheet" href="styles.css">
+  </head>
+  <body>
+    <div class="app-shell">
+      <aside class="sidebar" aria-label="Primary navigation">
+        <div class="brand">
+          <div class="brand-mark">C</div>
+          <div>
+            <strong>Cellar</strong>
+            <span>Homebrew browser</span>
+          </div>
+        </div>
+        <nav class="nav-list" aria-label="Catalog views">
+          <span class="nav-section">Browse</span>
+          <button class="nav-item active" data-view="discover">Discover</button>
+          <button class="nav-item" data-view="all">All Packages</button>
+          <button class="nav-item" data-view="library">Library</button>
+        </nav>
+        <button id="themeToggle" class="theme-toggle" type="button" aria-pressed="false">
+          <span class="theme-toggle-icon" aria-hidden="true"></span>
+          <span class="theme-toggle-text">Dark Mode</span>
+        </button>
+        <div class="sidebar-note">
+          <strong>Powered by Homebrew</strong>
+          <span>Catalog metadata comes from the official Homebrew Formulae API.</span>
+        </div>
+      </aside>
+
+      <main class="content">
+        <header class="toolbar">
+          <div class="search-wrap">
+            <span aria-hidden="true">Search</span>
+            <input id="searchInput" type="search" autocomplete="off" placeholder="Search apps, command-line tools, services, fonts">
+          </div>
+          <button id="refreshButton" class="icon-button" title="Refresh catalog" aria-label="Refresh catalog">Refresh</button>
+        </header>
+
+        <section class="status-bar" id="statusBar" aria-live="polite">
+          Loading the Homebrew catalog...
+        </section>
+        <section class="brew-health" id="brewHealth" aria-live="polite">
+          <strong>Homebrew status</strong>
+          <span>Checking whether this Mac can install and remove packages...</span>
+        </section>
+
+        <section class="hero">
+          <div>
+            <p class="eyebrow">Open-source software for macOS</p>
+            <h1>Browse Homebrew like an app store.</h1>
+            <p>Find casks for Mac apps and fonts, or formulae for command-line tools, services, libraries, and runtimes.</p>
+          </div>
+          <div class="stats-grid" aria-label="Catalog counts">
+            <div>
+              <strong id="formulaCount">-</strong>
+              <span>Formulae</span>
+            </div>
+            <div>
+              <strong id="caskCount">-</strong>
+              <span>Casks</span>
+            </div>
+            <div>
+              <strong id="installedCount">-</strong>
+              <span>Installed</span>
+            </div>
+          </div>
+        </section>
+
+        <section class="catalog-layout" id="catalogLayout">
+          <div class="results-pane">
+            <div class="section-heading">
+              <div>
+                <h2 id="resultsTitle">Popular packages</h2>
+                <div id="subfilterBar" class="subfilter-bar" aria-label="Narrow results"></div>
+              </div>
+              <span id="resultCount">0 items</span>
+            </div>
+            <div id="packageGrid" class="package-grid" aria-live="polite"></div>
+          </div>
+
+          <aside class="detail-panel" id="detailPanel" aria-label="Package details" hidden></aside>
+        </section>
+      </main>
+    </div>
+
+    <template id="packageCardTemplate">
+      <button class="package-card">
+        <div class="card-topline">
+          <span class="package-icon"></span>
+          <span class="package-kind"></span>
+        </div>
+        <strong class="package-title"></strong>
+        <span class="package-source"></span>
+        <span class="package-desc"></span>
+        <span class="package-version"></span>
+        <span class="install-state"></span>
+      </button>
+    </template>
+
+    <script src="app.js"></script>
+  </body>
+</html>

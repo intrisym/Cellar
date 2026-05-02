@@ -4,7 +4,7 @@ Cellar is a macOS Homebrew GUI prototype. It uses the official Homebrew Formulae
 
 ## User Features
 
-- Browse Homebrew formulae and casks with clear labels for non-technical users.
+- Browse Homebrew formulae and casks
 - Install and remove individual packages through guarded Homebrew actions.
 - Manage installed packages and available updates together in Library.
 - Bulk update all outdated Homebrew packages with one `Update All` action.

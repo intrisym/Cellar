@@ -1,5 +1,5 @@
 const { app, BrowserWindow, ipcMain, shell } = require("electron");
-const { execFile } = require("node:child_process");
+const { execFile, spawn } = require("node:child_process");
 const path = require("node:path");
 
 const BREW_PATHS = [
@@ -79,36 +79,36 @@ ipcMain.handle("brew:outdated", async () => {
   return JSON.parse(result.stdout);
 });
 
-ipcMain.handle("brew:install", async (_event, packageInfo) => {
+ipcMain.handle("brew:install", async (event, packageInfo) => {
   const brewPath = requireBrew();
   validatePackageInfo(packageInfo);
   const args = packageInfo.kind === "cask"
     ? ["install", "--cask", packageInfo.token]
     : ["install", packageInfo.token];
-  return operationResult(await runBrew(brewPath, args));
+  return operationResult(await runBrewStreaming(event, brewPath, args, packageInfo.operationId));
 });
 
-ipcMain.handle("brew:uninstall", async (_event, packageInfo) => {
+ipcMain.handle("brew:uninstall", async (event, packageInfo) => {
   const brewPath = requireBrew();
   validatePackageInfo(packageInfo);
   const args = packageInfo.kind === "cask"
     ? ["uninstall", "--cask", packageInfo.token]
     : ["uninstall", packageInfo.token];
-  return operationResult(await runBrew(brewPath, args));
+  return operationResult(await runBrewStreaming(event, brewPath, args, packageInfo.operationId));
 });
 
-ipcMain.handle("brew:upgrade", async (_event, packageInfo) => {
+ipcMain.handle("brew:upgrade", async (event, packageInfo) => {
   const brewPath = requireBrew();
   validatePackageInfo(packageInfo);
   const args = packageInfo.kind === "cask"
     ? ["upgrade", "--cask", packageInfo.token]
     : ["upgrade", packageInfo.token];
-  return operationResult(await runBrew(brewPath, args));
+  return operationResult(await runBrewStreaming(event, brewPath, args, packageInfo.operationId));
 });
 
-ipcMain.handle("brew:upgrade-all", async () => {
+ipcMain.handle("brew:upgrade-all", async (event, operationInfo = {}) => {
   const brewPath = requireBrew();
-  return operationResult(await runBrew(brewPath, ["upgrade"]));
+  return operationResult(await runBrewStreaming(event, brewPath, ["upgrade"], operationInfo.operationId));
 });
 
 ipcMain.handle("brew:doctor", async () => {
@@ -156,6 +156,98 @@ function runBrew(brewPath, args, options = {}) {
       });
     });
   });
+}
+
+function runBrewStreaming(event, brewPath, args, operationId) {
+  return new Promise((resolve, reject) => {
+    const child = spawn(brewPath, args, {
+      env: { ...process.env, HOMEBREW_NO_AUTO_UPDATE: "1" }
+    });
+    let stdout = "";
+    let stderr = "";
+
+    sendOperationProgress(event, operationId, {
+      stage: "Preparing",
+      progress: 8,
+      output: `brew ${args.join(" ")}`
+    });
+
+    child.stdout.on("data", (chunk) => {
+      const output = chunk.toString();
+      stdout += output;
+      sendOperationProgress(event, operationId, progressFromOutput(output));
+    });
+
+    child.stderr.on("data", (chunk) => {
+      const output = chunk.toString();
+      stderr += output;
+      sendOperationProgress(event, operationId, progressFromOutput(output));
+    });
+
+    child.on("error", (error) => {
+      reject(error);
+    });
+
+    child.on("close", (code) => {
+      sendOperationProgress(event, operationId, {
+        stage: code === 0 ? "Finished" : "Needs attention",
+        progress: code === 0 ? 100 : 100,
+        output: code === 0 ? "Homebrew finished successfully." : "Homebrew stopped before completing successfully.",
+        done: true
+      });
+
+      if (code !== 0) {
+        reject(new Error((stderr || stdout || `Homebrew exited with code ${code}`).trim()));
+        return;
+      }
+
+      resolve({ code, stdout, stderr });
+    });
+  });
+}
+
+function sendOperationProgress(event, operationId, payload) {
+  if (!operationId || event.sender.isDestroyed()) return;
+  event.sender.send("brew:operation-progress", {
+    operationId,
+    ...payload
+  });
+}
+
+function progressFromOutput(output) {
+  const cleanOutput = output.trim();
+  const percentMatch = cleanOutput.match(/(\d{1,3}(?:\.\d+)?)%/);
+  if (percentMatch) {
+    return {
+      stage: "Downloading",
+      progress: Math.min(92, Math.max(12, Number(percentMatch[1]))),
+      output: cleanOutput
+    };
+  }
+
+  return {
+    stage: stageFromOutput(cleanOutput),
+    progress: progressValueFromOutput(cleanOutput),
+    output: cleanOutput
+  };
+}
+
+function stageFromOutput(output) {
+  if (/downloading|curl|fetching/i.test(output)) return "Downloading";
+  if (/pouring|installing|linking|copying|moving/i.test(output)) return "Installing";
+  if (/cleanup|caveats|summary|linking binary/i.test(output)) return "Finalizing";
+  if (/removing|uninstalling|zap/i.test(output)) return "Removing";
+  if (/upgrading|updating/i.test(output)) return "Updating";
+  return "Working";
+}
+
+function progressValueFromOutput(output) {
+  if (/downloading|curl|fetching/i.test(output)) return 32;
+  if (/pouring|installing|linking|copying|moving/i.test(output)) return 68;
+  if (/cleanup|caveats|summary|linking binary/i.test(output)) return 88;
+  if (/removing|uninstalling|zap/i.test(output)) return 72;
+  if (/upgrading|updating/i.test(output)) return 48;
+  return 18;
 }
 
 function validatePackageInfo(packageInfo) {

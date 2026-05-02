@@ -20,6 +20,7 @@ const state = {
   popularPeriod: "30d",
   popularType: "all",
   popularCategory: "all",
+  currentOperationId: null,
   view: "discover",
   query: "",
   theme: readTheme()
@@ -66,6 +67,10 @@ elements.themeToggle.addEventListener("click", () => {
   state.theme = state.theme === "dark" ? "light" : "dark";
   applyTheme();
 });
+
+if (window.cellarBrew?.onOperationProgress) {
+  window.cellarBrew.onOperationProgress(handleOperationProgress);
+}
 
 initialize();
 
@@ -709,6 +714,7 @@ function renderDetail(pkg) {
       </div>
       <button class="panel-close-button" type="button" data-close-detail aria-label="Close package details">Close</button>
     </div>
+    ${operationBannerMarkup()}
     <div class="source-banner ${escapeHtml(pkg.kind)}">
       <strong>${escapeHtml(pkg.sourceLabel)}</strong><br>
       ${escapeHtml(pkg.sourceDescription)}
@@ -744,7 +750,7 @@ function renderDetail(pkg) {
     </div>
     <div class="detail-section">
       <h3>Activity</h3>
-      <div class="command-box operation-log" id="operationLog">No package changes have run yet.</div>
+      ${operationProgressMarkup()}
     </div>
   `;
 
@@ -800,18 +806,31 @@ async function runPackageAction(action, pkg) {
 
   if (!confirm(warning)) return;
 
+  const operationId = createOperationId(action, pkg.token);
+  state.currentOperationId = operationId;
   const log = elements.detailPanel.querySelector("#operationLog");
-  setOperationLog(log, `Running ${pkg.commandFor?.[action] || commandForAction(action, pkg)}...`);
+  setOperationProgress(6, "Preparing");
+  setOperationLog(log, `Running ${commandForAction(action, pkg)}...`);
+  setOperationButtonsDisabled(true);
 
   try {
-    const result = await window.cellarBrew[action]({ kind: pkg.kind, token: pkg.token });
-    setOperationLog(log, result.output || "Homebrew finished successfully.");
+    const result = await window.cellarBrew[action]({ kind: pkg.kind, token: pkg.token, operationId });
+    setOperationProgress(100, "Finished");
+    appendOperationLog(result.output || "Homebrew finished successfully.");
+    const completedLog = elements.detailPanel.querySelector("#operationLog")?.textContent || "Homebrew finished successfully.";
     await refreshLocalPackages();
     const updatedPackage = state.packages.find((item) => item.id === pkg.id) || pkg;
     state.selected = updatedPackage;
     renderDetail(updatedPackage);
+    setOperationProgress(100, "Finished");
+    setOperationLog(elements.detailPanel.querySelector("#operationLog"), completedLog);
+    setStatus(`${pkg.displayName} ${action === "uninstall" ? "removed" : "installed or updated"} successfully.`);
   } catch (error) {
-    setOperationLog(log, error.message || "Homebrew could not complete the request.");
+    setOperationProgress(100, "Needs attention");
+    appendOperationLog(error.message || "Homebrew could not complete the request.");
+  } finally {
+    setOperationButtonsDisabled(false);
+    state.currentOperationId = null;
   }
 }
 
@@ -823,18 +842,25 @@ async function runBulkUpdate() {
   if (!confirm(confirmation)) return;
 
   renderBulkOperationPanel(updateCount);
+  const operationId = createOperationId("upgrade-all", "all");
+  state.currentOperationId = operationId;
   const log = elements.detailPanel.querySelector("#operationLog");
+  setOperationProgress(6, "Preparing");
   setOperationLog(log, "Running brew upgrade...");
   setStatus(`Updating ${updateCount.toLocaleString()} Homebrew package${updateCount === 1 ? "" : "s"}...`);
 
   try {
-    const result = await window.cellarBrew.upgradeAll();
-    setOperationLog(log, result.output || "All available Homebrew updates finished successfully.");
+    const result = await window.cellarBrew.upgradeAll({ operationId });
+    setOperationProgress(100, "Finished");
+    appendOperationLog(result.output || "All available Homebrew updates finished successfully.");
     await refreshLocalPackages();
     setStatus("Bulk update finished.");
   } catch (error) {
-    setOperationLog(log, error.message || "Homebrew could not complete the bulk update.");
+    setOperationProgress(100, "Needs attention");
+    appendOperationLog(error.message || "Homebrew could not complete the bulk update.");
     setStatus("Bulk update could not finish.");
+  } finally {
+    state.currentOperationId = null;
   }
 }
 
@@ -859,7 +885,7 @@ function renderBulkOperationPanel(updateCount) {
     </div>
     <div class="detail-section">
       <h3>Activity</h3>
-      <div class="command-box operation-log" id="operationLog">Waiting to start...</div>
+      ${operationProgressMarkup("Waiting to start...")}
     </div>
   `;
 
@@ -874,6 +900,84 @@ function commandForAction(action, pkg) {
 
 function setOperationLog(log, message) {
   if (log) log.textContent = message;
+}
+
+function operationProgressMarkup(initialLog = "No package changes have run yet.") {
+  return `
+    <div class="operation-progress activity-progress" aria-live="polite">
+      <div class="operation-progress-header">
+        <strong id="operationProgressLabel">Ready</strong>
+        <span id="operationProgressPercent">0%</span>
+      </div>
+      <div class="operation-progress-track" aria-hidden="true">
+        <div class="operation-progress-fill" id="operationProgressFill" style="width: 0%"></div>
+      </div>
+    </div>
+    <div class="command-box operation-log" id="operationLog">${escapeHtml(initialLog)}</div>
+  `;
+}
+
+function operationBannerMarkup() {
+  return `
+    <div class="operation-banner" id="operationBanner" hidden aria-live="polite">
+      <div class="operation-progress-header">
+        <strong id="operationBannerLabel">Preparing</strong>
+        <span id="operationBannerPercent">0%</span>
+      </div>
+      <div class="operation-progress-track" aria-hidden="true">
+        <div class="operation-progress-fill" id="operationBannerFill" style="width: 0%"></div>
+      </div>
+    </div>
+  `;
+}
+
+function handleOperationProgress(payload) {
+  if (!payload || payload.operationId !== state.currentOperationId) return;
+  if (typeof payload.progress === "number") {
+    setOperationProgress(payload.progress, payload.stage || "Working");
+  }
+  if (payload.output) {
+    appendOperationLog(payload.output);
+  }
+}
+
+function setOperationProgress(progress, label) {
+  const value = Math.max(0, Math.min(100, Math.round(progress)));
+  const fill = elements.detailPanel.querySelector("#operationProgressFill");
+  const text = elements.detailPanel.querySelector("#operationProgressPercent");
+  const status = elements.detailPanel.querySelector("#operationProgressLabel");
+  const banner = elements.detailPanel.querySelector("#operationBanner");
+  const bannerFill = elements.detailPanel.querySelector("#operationBannerFill");
+  const bannerText = elements.detailPanel.querySelector("#operationBannerPercent");
+  const bannerStatus = elements.detailPanel.querySelector("#operationBannerLabel");
+  if (fill) fill.style.width = `${value}%`;
+  if (text) text.textContent = `${value}%`;
+  if (status) status.textContent = label;
+  if (banner) banner.hidden = false;
+  if (bannerFill) bannerFill.style.width = `${value}%`;
+  if (bannerText) bannerText.textContent = `${value}%`;
+  if (bannerStatus) bannerStatus.textContent = label;
+}
+
+function appendOperationLog(message) {
+  const log = elements.detailPanel.querySelector("#operationLog");
+  if (!log || !message) return;
+  const next = String(message).trim();
+  if (!next) return;
+  log.textContent = log.textContent && !/No package changes|Waiting to start/.test(log.textContent)
+    ? `${log.textContent}\n${next}`
+    : next;
+  log.scrollTop = log.scrollHeight;
+}
+
+function setOperationButtonsDisabled(disabled) {
+  elements.detailPanel.querySelectorAll("[data-action], [data-copy], [data-close-detail]").forEach((button) => {
+    button.disabled = disabled;
+  });
+}
+
+function createOperationId(action, token) {
+  return `${action}:${token}:${Date.now()}:${Math.random().toString(16).slice(2)}`;
 }
 
 function installExplanation(pkg) {

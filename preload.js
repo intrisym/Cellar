@@ -7,7 +7,12 @@ contextBridge.exposeInMainWorld("cellarBrew", {
   install: (packageInfo) => ipcRenderer.invoke("brew:install", packageInfo),
   uninstall: (packageInfo) => ipcRenderer.invoke("brew:uninstall", packageInfo),
   upgrade: (packageInfo) => ipcRenderer.invoke("brew:upgrade", packageInfo),
-  upgradeAll: () => ipcRenderer.invoke("brew:upgrade-all"),
+  upgradeAll: (operationInfo) => ipcRenderer.invoke("brew:upgrade-all", operationInfo),
   doctor: () => ipcRenderer.invoke("brew:doctor"),
-  openLink: (url) => ipcRenderer.invoke("link:open", url)
+  openLink: (url) => ipcRenderer.invoke("link:open", url),
+  onOperationProgress: (callback) => {
+    const listener = (_event, payload) => callback(payload);
+    ipcRenderer.on("brew:operation-progress", listener);
+    return () => ipcRenderer.removeListener("brew:operation-progress", listener);
+  }
 });

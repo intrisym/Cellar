@@ -5,7 +5,8 @@
   "main": "main.js",
   "scripts": {
     "start": "electron .",
-    "check": "node --check app.js && node --check main.js && node --check preload.js"
+    "check": "node --check app.js && node --check main.js && node --check preload.js",
+    "dist": "electron-builder --mac zip"
   },
   "keywords": [
     "homebrew",
@@ -16,6 +17,35 @@
   "author": "",
   "license": "MIT",
   "devDependencies": {
-    "electron": "^41.4.0"
+    "electron": "^41.4.0",
+    "electron-builder": "^26.0.12"
+  },
+  "build": {
+    "appId": "com.intrisym.cellar",
+    "productName": "Cellar",
+    "artifactName": "Cellar-${version}-mac.${ext}",
+    "files": [
+      "index.html",
+      "styles.css",
+      "app.js",
+      "main.js",
+      "preload.js",
+      "package.json"
+    ],
+    "mac": {
+      "category": "public.app-category.utilities",
+      "target": [
+        {
+          "target": "zip",
+          "arch": [
+            "arm64",
+            "x64"
+          ]
+        }
+      ]
+    },
+    "directories": {
+      "output": "dist"
+    }
   }
 }

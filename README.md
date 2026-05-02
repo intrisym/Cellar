@@ -19,6 +19,22 @@ npm start
 
 Opening `index.html` directly still works as a read-only catalog browser, but package installation and removal require the Electron desktop app.
 
+## Build Release Zip
+
+Create the macOS release zip with:
+
+```sh
+npm run dist
+```
+
+The unsigned local build is written to:
+
+```text
+dist/Cellar-0.1.0-mac.zip
+```
+
+This artifact is ignored by git and should be uploaded to a GitHub Release before publishing a Homebrew cask.
+
 ## GitHub Pages Preview
 
 The static browser preview can be deployed with GitHub Pages at:
@@ -50,7 +66,7 @@ Generate the local cask file from the template, then replace `REPLACE_WITH_RELEA
 
 ```sh
 cp Casks/c/cellar.rb.template Casks/c/cellar.rb
-shasum -a 256 Cellar-0.1.0-mac.zip
+shasum -a 256 dist/Cellar-0.1.0-mac.zip
 ```
 
 `Casks/c/cellar.rb` is ignored by git so an invalid cask with a placeholder checksum is not committed accidentally.

@@ -31,15 +31,31 @@ The Pages preview supports browsing, searching, and filtering Homebrew catalog d
 
 ## Homebrew Cask Distribution
 
-The intended user install flow is:
+The intended first-party tap install flow is:
 
 ```sh
+brew tap intrisym/cellar
 brew install --cask cellar
 ```
 
-A release build should publish a signed and notarized macOS `.dmg` or `.zip`. The Homebrew cask would then point at that release artifact.
+A release build should publish a signed and notarized macOS `.zip` containing `Cellar.app`. The Homebrew cask points at that release artifact.
 
-Example cask shape:
+The committed cask template is stored at:
+
+```text
+Casks/c/cellar.rb.template
+```
+
+Generate the local cask file from the template, then replace `REPLACE_WITH_RELEASE_SHA256` with the SHA-256 of the release zip:
+
+```sh
+cp Casks/c/cellar.rb.template Casks/c/cellar.rb
+shasum -a 256 Cellar-0.1.0-mac.zip
+```
+
+`Casks/c/cellar.rb` is ignored by git so an invalid cask with a placeholder checksum is not committed accidentally.
+
+Current cask shape:
 
 ```ruby
 cask "cellar" do
@@ -53,6 +69,21 @@ cask "cellar" do
 
   app "Cellar.app"
 end
+```
+
+To test the cask locally after replacing the checksum:
+
+```sh
+brew install --cask ./Casks/c/cellar.rb
+brew uninstall --cask cellar
+brew audit --new --cask ./Casks/c/cellar.rb
+```
+
+For a dedicated tap repository, create `github.com/intrisym/homebrew-cellar`, copy `Casks/c/cellar.rb` into it, then users can run:
+
+```sh
+brew tap intrisym/cellar
+brew install --cask cellar
 ```
 
 ## Safety Model

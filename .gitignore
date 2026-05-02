@@ -141,3 +141,10 @@ dist
 vite.config.js.timestamp-*
 vite.config.ts.timestamp-*
 .vite/
+
+# Generated Homebrew cask and release artifacts
+Casks/c/cellar.rb
+Cellar-*-mac.zip
+Cellar-*-mac.dmg
+dist/
+release/

@@ -1,0 +1,11 @@
+cask "cellar" do
+  version "0.1.0"
+  sha256 "REPLACE_WITH_RELEASE_SHA256"
+
+  url "https://github.com/intrisym/Cellar/releases/download/v#{version}/Cellar-#{version}-mac.zip"
+  name "Cellar"
+  desc "Friendly macOS GUI for Homebrew formulae and casks"
+  homepage "https://github.com/intrisym/Cellar"
+
+  app "Cellar.app"
+end

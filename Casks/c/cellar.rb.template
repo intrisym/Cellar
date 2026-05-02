@@ -7,5 +7,7 @@ cask "cellar" do
   desc "Friendly macOS GUI for Homebrew formulae and casks"
   homepage "https://github.com/intrisym/Cellar"
 
+  depends_on macos: ">= :monterey"
+
   app "Cellar.app"
 end

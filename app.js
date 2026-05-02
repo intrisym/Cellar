@@ -824,6 +824,7 @@ async function runPackageAction(action, pkg) {
     renderDetail(updatedPackage);
     setOperationProgress(100, "Finished");
     setOperationLog(elements.detailPanel.querySelector("#operationLog"), completedLog);
+    hideOperationBannerAfterDelay();
     setStatus(`${pkg.displayName} ${action === "uninstall" ? "removed" : "installed or updated"} successfully.`);
   } catch (error) {
     setOperationProgress(100, "Needs attention");
@@ -853,6 +854,7 @@ async function runBulkUpdate() {
     const result = await window.cellarBrew.upgradeAll({ operationId });
     setOperationProgress(100, "Finished");
     appendOperationLog(result.output || "All available Homebrew updates finished successfully.");
+    hideOperationBannerAfterDelay();
     await refreshLocalPackages();
     setStatus("Bulk update finished.");
   } catch (error) {
@@ -957,6 +959,15 @@ function setOperationProgress(progress, label) {
   if (bannerFill) bannerFill.style.width = `${value}%`;
   if (bannerText) bannerText.textContent = `${value}%`;
   if (bannerStatus) bannerStatus.textContent = label;
+}
+
+function hideOperationBannerAfterDelay() {
+  const operationId = state.currentOperationId;
+  window.setTimeout(() => {
+    if (state.currentOperationId && state.currentOperationId !== operationId) return;
+    const banner = elements.detailPanel.querySelector("#operationBanner");
+    if (banner) banner.hidden = true;
+  }, 1600);
 }
 
 function appendOperationLog(message) {

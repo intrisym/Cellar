@@ -19,6 +19,16 @@ npm start
 
 Opening `index.html` directly still works as a read-only catalog browser, but package installation and removal require the Electron desktop app.
 
+## GitHub Pages Preview
+
+The static browser preview can be deployed with GitHub Pages at:
+
+```text
+https://intrisym.github.io/Cellar/
+```
+
+The Pages preview supports browsing, searching, and filtering Homebrew catalog data. Installing, removing, updating, and Homebrew diagnostics require the Electron desktop app because those actions need the local Homebrew bridge.
+
 ## Homebrew Cask Distribution
 
 The intended user install flow is:
